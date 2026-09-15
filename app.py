@@ -1,47 +1,81 @@
-from flask import Flask, request, jsonify
-import requests
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import express from "express";
+import { z } from "zod";
 
-app = Flask(__name__)
+const app = express();
+app.use(express.json());
 
-GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEN2rj_WGPKqzew0GuJbogrS4BWt1OPfVfZTIdl7rIUCI7cJS2CZh8sIuC1vH7Smc96w/exec"
+const GOOGLE_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbyEN2rj_WGPKqzew0GuJbogrS4BWt1OPfVfZTIdl7rIUCI7cJS2CZh8sIuC1vH7Smc96w/exec";
 
+function createServer() {
+  const server = new McpServer({
+    name: "college-ai-mcp",
+    version: "1.0.0"
+  });
 
-@app.route("/")
-def home():
-    return "College AI Server is running"
+  server.tool(
+    "college_search",
+    "ค้นหาข้อมูลของวิทยาลัยเทคนิคจุฬาภรณ์ (ลาดขวาง) จากฐานข้อมูล Google Sheets",
+    {
+      keyword: z.string().describe("คำค้นหาที่ต้องการค้น เช่น ช่างไฟฟ้า สมัครเรียน ค่าเทอม")
+    },
+    async ({ keyword }) => {
+      try {
+        const response = await fetch(
+          ${GOOGLE_SCRIPT_URL}?q=${encodeURIComponent(keyword)}
+        );
 
+        const data = await response.json();
 
-@app.route("/college_search")
-def college_search():
-    keyword = request.args.get("keyword", "").strip()
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(data.results || [], null, 2)
+            }
+          ]
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: เกิดข้อผิดพลาดในการค้นข้อมูล: ${error.message}
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
 
-    if not keyword:
-        return jsonify({
-            "success": False,
-            "message": "กรุณาระบุ keyword"
-        })
+  return server;
+}
 
-    try:
-        response = requests.get(
-            GOOGLE_SCRIPT_URL,
-            params={"q": keyword},
-            timeout=15
-        )
+app.get("/", (req, res) => {
+  res.send("College AI MCP Server is running");
+});
 
-        data = response.json()
+app.all("/mcp", async (req, res) => {
+  const server = createServer();
 
-        return jsonify({
-            "success": True,
-            "keyword": keyword,
-            "data": data.get("results", [])
-        })
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined
+  });
 
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        })
+  res.on("close", async () => {
+    await transport.close();
+    await server.close();
+  });
 
+  await server.connect(transport);
+  await transport.handleRequest(req, res);
+});
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+const PORT = process.env.PORT || 10000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`College AI MCP Server running on port ${PORT}`);
+});
