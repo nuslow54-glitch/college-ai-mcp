@@ -20,9 +20,7 @@ function createMcpServer() {
     "college_search",
     "ค้นหาข้อมูลวิทยาลัยเทคนิคจุฬาภรณ์ (ลาดขวาง)",
     {
-      keyword: z.string().describe(
-        "คำค้น เช่น ช่างไฟฟ้า สมัครเรียน ค่าใช้จ่าย"
-      )
+      keyword: z.string()
     },
     async ({ keyword }) => {
       try {
@@ -38,11 +36,7 @@ function createMcpServer() {
           content: [
             {
               type: "text",
-              text: JSON.stringify(
-                data.results || [],
-                null,
-                2
-              )
+              text: JSON.stringify(data.results || [], null, 2)
             }
           ]
         };
@@ -51,9 +45,7 @@ function createMcpServer() {
           content: [
             {
               type: "text",
-              text:
-                "ไม่สามารถค้นข้อมูลวิทยาลัยได้: " +
-                error.message
+              text: "ไม่สามารถค้นข้อมูลวิทยาลัยได้: " + error.message
             }
           ],
           isError: true
@@ -69,7 +61,7 @@ app.get("/", (req, res) => {
   res.send("College AI MCP Server is running");
 });
 
-app.all("/mcp", async (req, res) => {
+app.post("/mcp", async (req, res) => {
   const server = createMcpServer();
 
   const transport = new StreamableHTTPServerTransport({
@@ -77,21 +69,12 @@ app.all("/mcp", async (req, res) => {
     enableJsonResponse: true
   });
 
-  res.on("close", async () => {
-    await transport.close();
-    await server.close();
-  });
-
   try {
     await server.connect(transport);
 
-    await transport.handleRequest(
-      req,
-      res,
-      req.body
-    );
+    await transport.handleRequest(req, res, req.body);
   } catch (error) {
-    console.error("MCP Error:", error);
+    console.error(error);
 
     if (!res.headersSent) {
       res.status(500).json({
@@ -104,7 +87,5 @@ app.all("/mcp", async (req, res) => {
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(
-    College AI MCP Server running on port ${PORT}
-  );
+  console.log(`College AI MCP Server running on port ${PORT}`);
 });
