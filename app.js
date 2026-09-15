@@ -46,9 +46,7 @@ function createMcpServer() {
             }
           ]
         };
-
       } catch (error) {
-
         return {
           content: [
             {
@@ -58,7 +56,6 @@ function createMcpServer() {
           ],
           isError: true
         };
-
       }
     }
   );
@@ -71,13 +68,11 @@ app.get("/", (req, res) => {
 });
 
 app.all("/mcp", async (req, res) => {
-
   const server = createMcpServer();
 
-  const transport =
-    new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined
-    });
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined
+  });
 
   res.on("close", async () => {
     await transport.close();
@@ -85,14 +80,11 @@ app.all("/mcp", async (req, res) => {
   });
 
   await server.connect(transport);
-
   await transport.handleRequest(req, res);
 });
 
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(
-    College AI MCP Server running on port ${PORT}
-  );
+  console.log(`College AI MCP Server running on port ${PORT}`);
 });
