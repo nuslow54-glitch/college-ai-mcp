@@ -51,7 +51,9 @@ function createMcpServer() {
           content: [
             {
               type: "text",
-              text: "ไม่สามารถค้นข้อมูลวิทยาลัยได้: " + error.message
+              text:
+                "ไม่สามารถค้นข้อมูลวิทยาลัยได้: " +
+                error.message
             }
           ],
           isError: true
@@ -71,7 +73,8 @@ app.all("/mcp", async (req, res) => {
   const server = createMcpServer();
 
   const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true
   });
 
   res.on("close", async () => {
@@ -79,12 +82,29 @@ app.all("/mcp", async (req, res) => {
     await server.close();
   });
 
-  await server.connect(transport);
-  await transport.handleRequest(req, res);
+  try {
+    await server.connect(transport);
+
+    await transport.handleRequest(
+      req,
+      res,
+      req.body
+    );
+  } catch (error) {
+    console.error("MCP Error:", error);
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: error.message
+      });
+    }
+  }
 });
 
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`College AI MCP Server running on port ${PORT}`);
+  console.log(
+    College AI MCP Server running on port ${PORT}
+  );
 });
